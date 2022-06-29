@@ -1,12 +1,18 @@
 '''
 Script for training and evaluating XGBoost model.
 '''
+import os
+import pickle
+from pathlib import Path
+from datetime import datetime
+
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
 import xgboost as xgb
 from sklearn.linear_model import LogisticRegression
 
+from .helper import get_config
 from .data import get_data
 
 
@@ -14,8 +20,9 @@ def train_eval_model():
     '''
     Trains and evaluates an XGBoost model on the iris dataset.
     Returns:
-      f1_score of trained model.
+      Path at which trained model was saved
     '''
+
     iris = get_data()
     X = iris.data
     y = iris.target
@@ -55,7 +62,24 @@ def train_eval_model():
 
     print(f'F1 score of Logistic Regression model: {f1_score_result}')
 
-    return f1_score_results
+    models = [bst, logreg]
+    model_names = ['xgboost','log-reg']
+    max_f1_model_idx = np.argmax(f1_score_results)
+    best_model = models[max_f1_model_idx]
+    # TODO[christine]: log warning if performance of both models is the same
+
+    timestamp = datetime.now()
+    best_model_name = f'{timestamp}_{model_names[max_f1_model_idx]}'
+    cfg = get_config()
+    model_pickle_path = (
+        Path(os.path.dirname(__file__)).parent/cfg['save_model_path']/(
+            best_model_name + '.pickle'))
+
+    model_pickle_path.touch()
+    with open(model_pickle_path, 'wb') as pickle_path:
+        pickle.dump(best_model, pickle_path, protocol=pickle.HIGHEST_PROTOCOL)
+    
+    return model_pickle_path
 
 
 if __name__ == '__main__':

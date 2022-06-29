@@ -28,5 +28,7 @@ def test_model():
     '''
     Test function for training and evaluating model.
     '''
-    assert isinstance(train_eval_model(),np.float64)
+    cfg = get_config()
+    model_save_path = train_eval_model()
+    assert Path.exists(model_save_path)
     
