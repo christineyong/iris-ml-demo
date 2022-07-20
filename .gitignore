@@ -127,5 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# VSCode settings
 .vscode/settings.json
+
+# Model artifacts
 models/*.pickle
+
+# Mac OS files
+.DS_Store
