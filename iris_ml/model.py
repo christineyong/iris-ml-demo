@@ -15,7 +15,6 @@ from sklearn.metrics import accuracy_score, f1_score, fbeta_score
 from .helper import get_config
 
 
-logging.basicConfig(level=logging.WARN)
 logger = logging.getLogger(__name__)
 
 def f1_score_micro(y_true, y_pred):
@@ -53,24 +52,24 @@ class IrisModel():
         y_pred = np.asarray([np.argmax(line) for line in predictions])
         return y_pred
 
-    def save(self):
+    def save(self, directory):
         '''
-        Save sklearn model.
+        Save model as a pickle file.
+        Args:
+            directory: Directory in which to save model.
         '''
-        timestamp = datetime.now()
-        model_name = f'{timestamp}_{self.model_base}_{self.name}'
-        cfg = get_config()
-        model_pickle_dir = Path(os.path.dirname(__file__)).parent/cfg['save_model_path']
-        if not model_pickle_dir.exists:
+        model_name = f'{self.model_base}_{self.name}'
+        logging.debug(f'Model artifact save directory: {directory}')
+        if not directory.exists():
             logger.warning(f'Model artifact directory does not exist.')
             logger.warning(f'Creating directory at {model_pickle_dir}...')
-            model_pickle_dir.mkdir(parents=True)
-        model_pickle_path = (model_pickle_dir/model_name).with_suffix('.pickle')
+            directory.mkdir(parents=True)
+        model_pickle_path = (directory/model_name).with_suffix('.pickle')
         model_pickle_path.touch()
         logger.info(f'Saving model to: {model_pickle_path}...')
         with open(model_pickle_path, 'wb') as pickle_path:
             pickle.dump(self.model, pickle_path, protocol=pickle.HIGHEST_PROTOCOL)
-        logger.info(f'Model saved at {model_pickle_path}.')
+        logger.info(f'Model saved.')
 
     def evaluate(self,y_true, y_pred):
         logger.info('Evaluation metrics:')

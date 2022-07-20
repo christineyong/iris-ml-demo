@@ -131,8 +131,9 @@ dmypy.json
 # VSCode settings
 .vscode/settings.json
 
-# Model artifacts
-models/*.pickle
+# Model artifacts and logs
+runs/*
+!runs/.gitkeep
 
 # Mac OS files
 .DS_Store
