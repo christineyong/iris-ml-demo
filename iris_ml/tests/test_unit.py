@@ -7,7 +7,7 @@ import numpy as np
 
 from ..data import get_data
 from ..helper import get_config
-from ..model import train_eval_model
+from ..train import train
 
 def test_get_data():
     '''
@@ -24,11 +24,14 @@ def test_get_config():
         f'Expected output type "dict" but got output type {type(cfg)}')
 
 
-def test_model():
+def test_model_logreg():
     '''
     Test function for training and evaluating model.
     '''
-    cfg = get_config()
-    model_save_path = train_eval_model()
-    assert Path.exists(model_save_path)
-    
+    train('logreg')    
+
+def test_model_xgboost():
+    '''
+    Test function for training and evaluating model.
+    '''
+    train('xgboost')    

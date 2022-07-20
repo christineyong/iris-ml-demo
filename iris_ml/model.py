@@ -5,82 +5,122 @@ import os
 import pickle
 from pathlib import Path
 from datetime import datetime
+import logging
 
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
 import xgboost as xgb
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, f1_score, fbeta_score
 
 from .helper import get_config
-from .data import get_data
 
 
-def train_eval_model():
-    '''
-    Trains and evaluates an XGBoost model on the iris dataset.
-    Returns:
-      Path at which trained model was saved
-    '''
+logging.basicConfig(level=logging.WARN)
+logger = logging.getLogger(__name__)
 
-    iris = get_data()
-    X = iris.data
-    y = iris.target
-    f1_score_results = []
+def f1_score_micro(y_true, y_pred):
+    return f1_score(y_true, y_pred, average='micro')
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+def fpointfive_score_micro(y_true, y_pred):
+    return fbeta_score(y_true, y_pred, beta=0.5, average='micro')
 
-    dtrain = xgb.DMatrix(X_train, label=y_train)
-    dtest = xgb.DMatrix(X_test, label=y_test)
+def f2_score_micro(y_true, y_pred):
+    return fbeta_score(y_true, y_pred, beta=2, average='micro')
 
-    param = {
-        'max_depth': 3,  # the maximum depth of each tree
-        'eta': 0.3,  # the training step for each iteration
-        'silent': 1,  # logging mode - quiet
-        'objective': 'multi:softprob',  # error evaluation for multiclass training
-        'num_class': 3}  # the number of classes that exist in this datset
-    num_round = 5  # the number of training iterations
+class IrisModel():
+    def __init__(self, model_base=None):
+        self.model_base = model_base
+        self.name = None
+        self.eval_metrics = {
+            'accuracy': accuracy_score,
+            'f1_score': f1_score_micro,
+            'f0.5_score': fpointfive_score_micro,
+            'f2_score': f2_score_micro,
+        }
+        self.param = {}
 
-    bst = xgb.train(param, dtrain, num_round)
+    def preprocess():
+        return
 
-    preds = bst.predict(dtest)
-    y_pred = np.asarray([np.argmax(line) for line in preds])
-    f1_score_result = f1_score(y_test, y_pred, average='macro')
-    f1_score_results.append(f1_score_result)
+    def train(self):
+        logger.info(f'Model: {self.model_base} - {self.name}')
+        logger.info(f'Parameters:')
+        for param, param_value in self.param.items():
+            logger.info(f'\t{param}:\t{param_value}')
 
-    print(f'F1 score of XGBoost model: {f1_score_result}')
+    def predict(self, X_test):
+        predictions = self.model.predict(X_test)
+        y_pred = np.asarray([np.argmax(line) for line in predictions])
+        return y_pred
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=42)
+    def save(self):
+        '''
+        Save sklearn model.
+        '''
+        timestamp = datetime.now()
+        model_name = f'{timestamp}_{self.model_base}_{self.name}'
+        cfg = get_config()
+        model_pickle_dir = Path(os.path.dirname(__file__)).parent/cfg['save_model_path']
+        if not model_pickle_dir.exists:
+            logger.warning(f'Model artifact directory does not exist.')
+            logger.warning(f'Creating directory at {model_pickle_dir}...')
+            model_pickle_dir.mkdir(parents=True)
+        model_pickle_path = (model_pickle_dir/model_name).with_suffix('.pickle')
+        model_pickle_path.touch()
+        logger.info(f'Saving model to: {model_pickle_path}...')
+        with open(model_pickle_path, 'wb') as pickle_path:
+            pickle.dump(self.model, pickle_path, protocol=pickle.HIGHEST_PROTOCOL)
+        logger.info(f'Model saved at {model_pickle_path}.')
 
-    logreg = LogisticRegression(C=1e5, max_iter=400)
-    logreg.fit(X_train, y_train)
+    def evaluate(self,y_true, y_pred):
+        logger.info('Evaluation metrics:')
+        for metric, fmetric in self.eval_metrics.items():
+            metric_value = fmetric(y_true, y_pred)
+            logger.info(f'\t{metric}:\t{metric_value}')
+        
 
-    y_pred = logreg.predict(X_test)
-    f1_score_result = f1_score(y_test, y_pred, average='macro')
-    f1_score_results.append(f1_score_result)
+class XGBoostModel(IrisModel):
+    def __init__(self):
+        super().__init__(model_base='XGBoost')
+        self.name = 'Vanilla'
+        self.param = {
+            'max_depth': 3,  # the maximum depth of each tree
+            'eta': 0.3,  # the training step for each iteration
+            'silent': 1,  # logging mode - quiet
+            'objective': 'multi:softprob',  # error evaluation for multiclass training
+            'num_class': 3, # the number of classes that exist in this datset
+        }  
+        self.max_iterations = 5  # the number of training iterations
 
-    print(f'F1 score of Logistic Regression model: {f1_score_result}')
+    def preprocess(self, X, y):
+        return xgb.DMatrix(X, label=y)
 
-    models = [bst, logreg]
-    model_names = ['xgboost','log-reg']
-    max_f1_model_idx = np.argmax(f1_score_results)
-    best_model = models[max_f1_model_idx]
-    # TODO[christine]: log warning if performance of both models is the same
+    def train(self, X_train, y_train):
+        super().train()
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        self.model = xgb.train(
+            self.param,
+            dtrain,
+            self.max_iterations,
+        )
 
-    timestamp = datetime.now()
-    best_model_name = f'{timestamp}_{model_names[max_f1_model_idx]}'
-    cfg = get_config()
-    model_pickle_path = (
-        Path(os.path.dirname(__file__)).parent/cfg['save_model_path']/(
-            best_model_name + '.pickle'))
-
-    model_pickle_path.touch()
-    with open(model_pickle_path, 'wb') as pickle_path:
-        pickle.dump(best_model, pickle_path, protocol=pickle.HIGHEST_PROTOCOL)
-    
-    return model_pickle_path
+    def predict(self, X_test):
+        dtest = xgb.DMatrix(X_test)
+        predictions = self.model.predict(dtest)
+        y_pred = np.asarray([np.argmax(line) for line in predictions])
+        return y_pred
 
 
-if __name__ == '__main__':
-    train_eval_model()
+class LogisticRegressionModel(IrisModel):
+    def __init__(self):
+        super().__init__(model_base='Logistic Regression')
+        self.name = 'Vanilla'
+        self.param = {
+            'C': 1e5,
+            'max_iter': 400
+        }
+
+    def train(self, X_train, y_train):
+        super().train()
+        self.model = LogisticRegression(**self.param)
+        self.model.fit(X_train, y_train)    
