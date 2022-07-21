@@ -70,7 +70,25 @@ class IrisModel():
         with open(model_pickle_path, 'wb') as pickle_path:
             pickle.dump(self.model, pickle_path, protocol=pickle.HIGHEST_PROTOCOL)
         logger.info(f'Model saved.')
-
+        
+    def load(self, directory):
+        '''
+        Load model from a pickle file
+        Args:
+            directory: Directory of the model pickle file
+        '''
+        model_name = f'{self.model_base}_{self.name}'
+        logging.debug(f'Model artifact read directory: {directory}')
+        if not directory.exists():
+            logger.warning(f'Model artifact directory does not exist.')
+            directory.mkdir(parents=True)
+        model_pickle_path = (directory/model_name).with_suffix('.pickle')
+        model_pickle_path.touch()
+        logger.info(f'Reading model from: {model_pickle_path}...')
+        with open(model_pickle_path, 'rb') as pickle_path:
+            self.model = pickle.load(pickle_path)
+        logger.info(f'Model loaded.')
+        
     def evaluate(self,y_true, y_pred):
         logger.info('Evaluation metrics:')
         for metric, fmetric in self.eval_metrics.items():
