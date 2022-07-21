@@ -80,10 +80,9 @@ class IrisModel():
         model_name = f'{self.model_base}_{self.name}'
         logging.debug(f'Model artifact read directory: {directory}')
         if not directory.exists():
-            logger.warning(f'Model artifact directory does not exist.')
-            directory.mkdir(parents=True)
+            logger.error(f'Could not find model directory expected at {directory}. Model could not be loaded.')
+            raise Exception(f'Could not find model directory expected at {directory}.')
         model_pickle_path = (directory/model_name).with_suffix('.pickle')
-        model_pickle_path.touch()
         logger.info(f'Reading model from: {model_pickle_path}...')
         with open(model_pickle_path, 'rb') as pickle_path:
             self.model = pickle.load(pickle_path)
