@@ -8,6 +8,7 @@ import numpy as np
 from ..data import get_data
 from ..helper import get_config
 from ..train import train
+from ..predict import predict
 
 def test_get_data():
     '''
@@ -35,3 +36,15 @@ def test_model_xgboost():
     Test function for training and evaluating model.
     '''
     train('xgboost')    
+    
+def predict_model_logreg():
+    '''
+    Predict function model.
+    '''
+    predict('logreg')   
+    
+def predict_model_xgboost():
+    '''
+    Predict function model.
+    '''
+    predict('xgboost')   
